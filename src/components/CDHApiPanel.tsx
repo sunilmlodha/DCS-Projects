@@ -151,14 +151,6 @@ export default function CDHApiPanel({
       : 'idle'
     : apiState;
 
-  const stateColors: Record<ApiState, string> = {
-    idle: '#334155', requesting: '#f59e0b', processing: '#f59e0b', responded: liveState.error ? '#ef4444' : '#22c55e', rendered: '#22c55e',
-  };
-  const stateLabels: Record<ApiState, string> = {
-    idle: 'IDLE', requesting: 'REQUESTING…', processing: isLive ? 'CALLING CDH…' : 'PROCESSING…',
-    responded: liveState.error && isLive ? 'ERROR' : 'RESPONDED', rendered: 'NBA RENDERED',
-  };
-
   const displayLatency = isLive ? liveState.latencyMs : latencyMs;
 
   // ── Mock request/response bodies (used when live mode is off) ───────────────
@@ -232,14 +224,6 @@ export default function CDHApiPanel({
             <ModeBadge mode={isLive && !liveState.error ? 'live' : 'mock'} />
           </div>
           <div className="flex items-center gap-2">
-            {liveState.loading && (
-              <div className="w-3 h-3 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin" />
-            )}
-            <div className="w-2 h-2 rounded-full transition-colors duration-300"
-              style={{ background: stateColors[effectiveApiState], boxShadow: `0 0 6px ${stateColors[effectiveApiState]}` }} />
-            <span className="text-[10px] font-mono font-bold" style={{ color: stateColors[effectiveApiState] }}>
-              {stateLabels[effectiveApiState]}
-            </span>
             {displayLatency !== null && (effectiveApiState === 'responded' || effectiveApiState === 'rendered') && (
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ background: '#00c2ff15', color: '#00c2ff' }}>
                 {displayLatency}ms
@@ -259,27 +243,6 @@ export default function CDHApiPanel({
           {isLive && config.authType !== 'none' && ` · Auth: ${config.authType}`}
         </div>
 
-        {/* Pipeline progress */}
-        <div className="flex items-center gap-1">
-          {(['requesting', 'processing', 'responded', 'rendered'] as ApiState[]).map((s, i) => {
-            const order: ApiState[] = ['requesting', 'processing', 'responded', 'rendered'];
-            const reached = order.indexOf(effectiveApiState) >= i;
-            return (
-              <div key={s} className="flex items-center gap-1 flex-1">
-                <div className="h-1 flex-1 rounded-full transition-all duration-500"
-                  style={{ background: reached ? persona.color : '#1e293b' }} />
-                {i === 3 && (
-                  <div className="w-2 h-2 rounded-full flex-shrink-0 transition-all duration-500"
-                    style={{ background: reached ? persona.color : '#1e293b' }} />
-                )}
-              </div>
-            );
-          })}
-        </div>
-        <div className="flex justify-between text-[9px] text-slate-700 mt-1 font-mono">
-          <span>Send</span><span>Process</span><span>Respond</span><span>Render</span>
-        </div>
-
         {/* Capture sub-bar */}
         {captureRequest && (
           <div className="mt-3 pt-3 border-t border-slate-800">
@@ -288,7 +251,6 @@ export default function CDHApiPanel({
               <span className="text-slate-500">{isLive ? config.baseUrl : PEGA_CDH_BASE}/</span>
               <span className="text-orange-300 font-semibold">interactions/capture</span>
               {captureResponse && <span className="ml-auto text-green-400 font-bold text-[10px]">200 OK ✓</span>}
-              {capturing && !captureResponse && <span className="ml-auto text-yellow-400 text-[10px] animate-pulse">Firing…</span>}
             </div>
           </div>
         )}
@@ -450,7 +412,7 @@ export default function CDHApiPanel({
                   className="flex-1 py-2 rounded-lg text-[11px] font-bold transition-all disabled:opacity-40"
                   style={{ background: `${persona.color}25`, color: persona.color, border: `1px solid ${persona.color}50` }}
                 >
-                  {liveState.loading ? '⏳ Calling…' : '↑ Test Connection'}
+                  ↑ Test Connection
                 </button>
                 <button
                   onClick={onConfigReset}
@@ -508,7 +470,7 @@ export default function CDHApiPanel({
                       className="flex-1 py-2 rounded-lg text-[11px] font-bold transition-all disabled:opacity-40"
                       style={{ background: `${persona.color}25`, color: persona.color, border: `1px solid ${persona.color}50` }}
                     >
-                      {liveState.loading ? '⏳ Sending…' : '↑ Send to CDH'}
+                      ↑ Send to CDH
                     </button>
                     <button
                       onClick={() => setEditableBody(JSON.stringify(buildRequestBody(), null, 2))}
@@ -609,11 +571,6 @@ export default function CDHApiPanel({
                   ✓ NBA data sourced from live CDH endpoint · {displayLatency}ms
                 </div>
               )}
-              {!isLive && (
-                <div className="p-2 bg-black/20 rounded-lg text-[9px] font-mono text-slate-600">
-                  // Tap CTA in the phone to fire POST /interactions/capture
-                </div>
-              )}
             </div>
           )}
 
@@ -624,7 +581,6 @@ export default function CDHApiPanel({
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-orange-400 font-bold text-[10px] font-mono">POST</span>
                   <span className="text-slate-500 text-[9px] font-mono">/interactions/capture</span>
-                  {!captureResponse && <span className="text-yellow-400 text-[9px] animate-pulse ml-auto">Firing…</span>}
                 </div>
                 <JsonBlock data={captureRequest} highlights={['ActionID', 'InteractionType', 'Treatment']} />
               </div>
