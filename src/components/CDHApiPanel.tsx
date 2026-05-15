@@ -37,7 +37,7 @@ interface Props {
   buildRequestBody: () => Record<string, unknown>;
 }
 
-type ApiTab = 'config' | 'request' | 'response' | 'nba' | 'capture';
+type ApiTab = 'config' | 'request' | 'response' | 'nba' | 'capture' | 'ops';
 type ApiState = 'idle' | 'requesting' | 'processing' | 'responded' | 'rendered';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -209,6 +209,7 @@ export default function CDHApiPanel({
     { id: 'request',  label: '→ Request',   disabled: false },
     { id: 'response', label: '← Response',  disabled: !responseReady },
     { id: 'nba',      label: '🎯 NBA',      disabled: !nbaReady },
+    { id: 'ops',      label: '🧭 Ops',      disabled: !nbaReady },
     { id: 'capture',  label: '📡 Capture',  disabled: !captureRequest, highlight: !!captureResponse },
   ];
 
@@ -570,6 +571,118 @@ export default function CDHApiPanel({
                   ✓ NBA data sourced from live CDH endpoint · {displayLatency}ms
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ── 🧭 Ops Manager tab ──────────────────────────────────────────── */}
+          {activeTab === 'ops' && nbaReady && (
+            <div className="slide-in space-y-4">
+
+              {/* Container + policy summary */}
+              <div className="rounded-xl p-3" style={{ background: `${persona.color}0f`, border: `1px solid ${persona.color}25` }}>
+                <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-2">Active Container</div>
+                <div className="font-mono text-[11px] text-cyan-300 break-all">
+                  {config.useStageContainer ? stage.containerName : (config.containerOverride || stage.containerName)}
+                </div>
+                <div className="flex gap-2 mt-2 text-[9px]">
+                  <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">{stage.channel}</span>
+                  <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">{stage.touchpoint.replace(/_/g, ' ')}</span>
+                  <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">{stage.direction ?? 'INBOUND'}</span>
+                </div>
+              </div>
+
+              {/* Policy gates */}
+              <div>
+                <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-2">Engagement Policy</div>
+                <div className="space-y-1.5">
+                  {[
+                    { label: 'Eligible',       value: 'PASS', detail: 'Candidate meets service & role criteria' },
+                    { label: 'Consented',       value: 'PASS', detail: 'Data consent recorded in AFRS' },
+                    { label: 'Fatigue check',   value: 'PASS', detail: 'Within contact frequency limits' },
+                    { label: 'D&I Disparity',   value: '0.91', detail: 'Above 0.85 threshold — ATRS audited' },
+                  ].map((g) => (
+                    <div key={g.label} className="flex items-center gap-2 p-2 rounded-lg"
+                      style={{ background: '#22c55e08', border: '1px solid #22c55e20' }}>
+                      <span className="text-green-400 text-xs flex-shrink-0">✓</span>
+                      <span className="text-[10px] text-white font-semibold flex-shrink-0 w-28">{g.label}</span>
+                      <span className="text-[9px] font-mono text-green-300 flex-shrink-0">{g.value}</span>
+                      <span className="text-[9px] text-slate-600 truncate">{g.detail}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-1.5 text-[9px] font-mono text-slate-700">
+                  ATRS-2026-{String(stage.id).padStart(3, '0')}-{persona.avatar}
+                </div>
+              </div>
+
+              {/* Decision reasoning per action */}
+              <div>
+                <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+                  Why Each Action Was Ranked
+                </div>
+                <div className="space-y-2">
+                  {displayActions.map((action, i) => {
+                    const reasons = [
+                      `pAccept ${(action.pAccept * 100).toFixed(0)}% — adaptive model score`,
+                      action.AudienceSegment ? `Segment match: ${action.AudienceSegment}` : 'Segment: general',
+                      `Treatment ${action.Treatment} selected by arbitration`,
+                      i === 0 ? 'Highest expected value — served to candidate' : `Suppressed — lower rank than action ${i}`,
+                    ];
+                    return (
+                      <div
+                        key={action.ActionID}
+                        className="rounded-xl p-3"
+                        style={{
+                          background: i === 0 ? `${persona.color}10` : 'rgba(15,23,42,0.6)',
+                          border: `1px solid ${i === 0 ? persona.color + '30' : '#1e293b'}`,
+                        }}
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          <span
+                            className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white flex-shrink-0"
+                            style={{ background: i === 0 ? persona.color : '#334155' }}
+                          >{action.Rank}</span>
+                          <span className="text-[11px] font-semibold text-white truncate">{action.ActionName}</span>
+                          <span className="ml-auto text-[10px] font-bold flex-shrink-0" style={{ color: i === 0 ? persona.color : '#475569' }}>
+                            {(action.pAccept * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                        <div className="space-y-0.5">
+                          {reasons.map((r) => (
+                            <div key={r} className="text-[9px] text-slate-500 flex gap-1.5">
+                              <span className="text-slate-700 flex-shrink-0">·</span>
+                              <span>{r}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Propensity + adaptive scores */}
+              <div className="rounded-xl p-3 bg-slate-950" style={{ border: '1px solid #1e293b' }}>
+                <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-2">Model Scores</div>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: 'Propensity', value: stage.propensity, color: persona.color },
+                    { label: 'Adaptive',   value: stage.adaptiveScore, color: '#22c55e' },
+                  ].map(({ label, value, color }) => (
+                    <div key={label}>
+                      <div className="flex justify-between text-[9px] mb-1">
+                        <span className="text-slate-500">{label}</span>
+                        <span className="font-mono" style={{ color }}>{value}%</span>
+                      </div>
+                      <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-700"
+                          style={{ width: `${value}%`, background: color }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
             </div>
           )}
 

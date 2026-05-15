@@ -8,13 +8,15 @@ import CandidateProfile from './components/CandidateProfile';
 import CDHApiPanel from './components/CDHApiPanel';
 import SimpleMobile from './components/SimpleMobile';
 import WebPortal from './components/WebPortal';
+import MarketerView from './components/MarketerView';
 import PersonaBuilder from './components/PersonaBuilder';
 import { useTheme, useThemeColors, THEMES } from './context/ThemeContext';
 import { useCapture } from './hooks/useCapture';
 import { useCDHConfig } from './hooks/useCDHConfig';
 import { useCDHLiveCall } from './hooks/useCDHLiveCall';
 
-type ViewMode = 'mobile' | 'web';
+type ViewMode   = 'mobile' | 'web';
+type UserView   = 'candidate' | 'marketer';
 
 // Maps each service to the stageConfigs key that has its journey defined
 const SERVICE_STAGE_KEY: Record<string, string> = {
@@ -53,7 +55,8 @@ export default function App() {
   );
 
   // ── UI toggle state ────────────────────────────────────────────────────────
-  const [viewMode, setViewMode] = useState<ViewMode>('mobile');
+  const [viewMode, setViewMode]       = useState<ViewMode>('mobile');
+  const [userView, setUserView]       = useState<UserView>('candidate');
   const [showCDHPanel, setShowCDHPanel] = useState(false);
 
   // ── Theme (from context — set by ThemeProvider in main.tsx) ───────────────
@@ -203,7 +206,7 @@ export default function App() {
       >
         <div className="max-w-screen-xl mx-auto px-5 py-3 flex items-center gap-4 flex-wrap">
           <div className="flex-shrink-0">
-            <div className="font-black text-sm leading-tight" style={{ color: tx }}>AFRS Candidate Experience Emulator</div>
+            <div className="font-black text-sm leading-tight" style={{ color: tx }}>AFRS Simulation Factory</div>
             <div className="text-[11px]" style={{ color: tm }}>Pega CDH Real-Time Container · Stages 1–13</div>
           </div>
 
@@ -277,19 +280,35 @@ export default function App() {
           </div>
 
           <div className="ml-auto flex items-center gap-3 flex-wrap">
-            {/* View mode toggle */}
+            {/* Candidate / Marketer view toggle */}
             <div className="flex items-center gap-0.5 rounded-lg p-0.5" style={{ background: theme.bgAlt, border: `1px solid ${theme.border}` }}>
-              {([['mobile', '📱 Mobile'], ['web', '🖥 Web']] as [ViewMode, string][]).map(([mode, label]) => (
+              {([['candidate', '🎯 Candidate'], ['marketer', '📊 Marketer']] as [UserView, string][]).map(([uv, label]) => (
                 <button
-                  key={mode}
-                  onClick={() => setViewMode(mode)}
+                  key={uv}
+                  onClick={() => setUserView(uv)}
                   className="px-2.5 py-1 rounded-md text-[10px] font-bold transition-all"
-                  style={{ background: viewMode === mode ? selectedPersona.color : 'transparent', color: viewMode === mode ? 'white' : tm }}
+                  style={{ background: userView === uv ? selectedPersona.color : 'transparent', color: userView === uv ? 'white' : tm }}
                 >
                   {label}
                 </button>
               ))}
             </div>
+
+            {/* View mode toggle — only relevant in candidate view */}
+            {userView === 'candidate' && (
+              <div className="flex items-center gap-0.5 rounded-lg p-0.5" style={{ background: theme.bgAlt, border: `1px solid ${theme.border}` }}>
+                {([['mobile', '📱 Mobile'], ['web', '🖥 Web']] as [ViewMode, string][]).map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    onClick={() => setViewMode(mode)}
+                    className="px-2.5 py-1 rounded-md text-[10px] font-bold transition-all"
+                    style={{ background: viewMode === mode ? selectedPersona.color : 'transparent', color: viewMode === mode ? 'white' : tm }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* CDH API panel toggle */}
             <button
@@ -332,15 +351,30 @@ export default function App() {
         {/* Phase row */}
         <div className="max-w-screen-xl mx-auto px-5 flex items-center gap-1 pt-2">
           {PHASE_GROUPS.map((pg) => {
-            const active = selectedPhase === pg.phaseNum;
+            const active   = selectedPhase === pg.phaseNum;
+            const isLive   = pg.phaseNum === 1;
             return (
               <button
                 key={pg.phaseNum}
                 onClick={() => handlePhaseChange(pg.phaseNum)}
-                className="flex flex-col items-center px-3 py-1.5 rounded-t-lg text-[10px] font-bold transition-all duration-150 border border-b-0"
-                style={{ background: active ? `${selectedPersona.color}18` : 'transparent', borderColor: active ? `${selectedPersona.color}40` : 'transparent', color: active ? selectedPersona.color : tm }}
+                className="flex flex-col items-center px-3 py-1.5 rounded-t-lg text-[10px] font-bold transition-all duration-150 border border-b-0 relative"
+                style={{
+                  background: active ? `${selectedPersona.color}18` : 'transparent',
+                  borderColor: active ? `${selectedPersona.color}40` : 'transparent',
+                  color: active ? selectedPersona.color : isLive ? tm : ts,
+                  opacity: isLive ? 1 : 0.6,
+                }}
               >
-                <span>{pg.label}</span>
+                <span className="flex items-center gap-1">
+                  {pg.label}
+                  {isLive && (
+                    <span className="inline-flex items-center gap-0.5 text-[8px] font-bold px-1 py-0.5 rounded"
+                      style={{ background: '#22c55e20', color: '#22c55e' }}>
+                      <span className="w-1 h-1 rounded-full bg-green-400 animate-pulse" />
+                      LIVE
+                    </span>
+                  )}
+                </span>
                 <span className="text-[8px] font-normal opacity-70">{pg.sub}</span>
               </button>
             );
@@ -425,48 +459,61 @@ export default function App() {
             />
           </div>
 
-          {/* Centre: views */}
+          {/* Centre: Candidate view or Marketer view */}
           <div className="flex flex-col gap-4">
-            {/* View area — mobile / web */}
-            <div className="flex justify-center">
-              {viewMode === 'mobile' && (
-                <SimpleMobile
-                  key={`mobile-${selectedPersona.id}-${stage.id}-${activePlatform.id}`}
-                  stage={effectiveStage}
-                  persona={selectedPersona}
-                  nbaReady={nbaReady}
-                  platform={activePlatform}
-                  capturing={capturing}
-                  captured={captured}
-                  onCtaClick={handleCtaClick}
-                />
-              )}
-              {viewMode === 'web' && (
-                <div className="w-full">
-                  <WebPortal
-                    key={`web-${selectedPersona.id}-${stage.id}-${activePlatform.id}`}
-                    stage={effectiveStage}
-                    persona={selectedPersona}
-                    nbaReady={nbaReady}
-                    platform={activePlatform}
-                    capturing={capturing}
-                    captured={captured}
-                    onCtaClick={handleCtaClick}
-                  />
+            {userView === 'marketer' ? (
+              /* ── Marketer / Ops view ───────────────────────────────────── */
+              <MarketerView
+                key={`marketer-${selectedPersona.id}-${stage.id}-${activePlatform.id}`}
+                stage={effectiveStage}
+                persona={selectedPersona}
+                platform={activePlatform}
+                nbaReady={nbaReady}
+              />
+            ) : (
+              /* ── Candidate view ────────────────────────────────────────── */
+              <>
+                <div className="flex justify-center">
+                  {viewMode === 'mobile' && (
+                    <SimpleMobile
+                      key={`mobile-${selectedPersona.id}-${stage.id}-${activePlatform.id}`}
+                      stage={effectiveStage}
+                      persona={selectedPersona}
+                      nbaReady={nbaReady}
+                      platform={activePlatform}
+                      capturing={capturing}
+                      captured={captured}
+                      onCtaClick={handleCtaClick}
+                    />
+                  )}
+                  {viewMode === 'web' && (
+                    <div className="w-full">
+                      <WebPortal
+                        key={`web-${selectedPersona.id}-${stage.id}-${activePlatform.id}`}
+                        stage={effectiveStage}
+                        persona={selectedPersona}
+                        nbaReady={nbaReady}
+                        platform={activePlatform}
+                        capturing={capturing}
+                        captured={captured}
+                        onCtaClick={handleCtaClick}
+                      />
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            {/* Candidate sees */}
-            <div
-              className="w-full rounded-xl p-3 text-xs text-slate-300 leading-relaxed"
-              style={{ background: `${selectedPersona.color}0a`, border: `1px solid ${selectedPersona.color}20` }}
-            >
-              <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: selectedPersona.color }}>
-                Candidate sees · {stage.dayRange}
-              </div>
-              {stage.candidateSees}
-            </div>
+                {/* Candidate sees strip */}
+                <div
+                  className="w-full rounded-xl p-3 text-xs text-slate-300 leading-relaxed"
+                  style={{ background: `${selectedPersona.color}0a`, border: `1px solid ${selectedPersona.color}20` }}
+                >
+                  <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: selectedPersona.color }}>
+                    Candidate sees · {stage.dayRange}
+                  </div>
+                  {stage.candidateSees}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Right: CDH API panel — shown on demand via ⚡ CDH API toggle */}
