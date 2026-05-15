@@ -489,7 +489,6 @@ export default function App() {
                 onNBAReady={handleNBAReady}
                 captureRequest={captureRequest}
                 captureResponse={captureResponse}
-                capturing={capturing}
                 config={cdhConfig}
                 onConfigChange={updateCDHConfig}
                 onConfigReset={resetCDHConfig}

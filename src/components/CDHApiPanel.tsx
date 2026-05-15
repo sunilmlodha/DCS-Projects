@@ -27,7 +27,6 @@ interface Props {
   onNBAReady: () => void;
   captureRequest: CaptureRequest | null;
   captureResponse: CaptureResponse | null;
-  capturing: boolean;
   // CDH live config (owned by App.tsx via useCDHConfig)
   config: CDHConfig;
   onConfigChange: (patch: Partial<CDHConfig>) => void;
@@ -99,7 +98,7 @@ const PEGA_CDH_BASE = 'https://pega-cdh.afrs.mod.uk/prweb/api/v1';
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function CDHApiPanel({
-  stage, persona, onNBAReady, captureRequest, captureResponse, capturing,
+  stage, persona, onNBAReady, captureRequest, captureResponse,
   config, onConfigChange, onConfigReset, liveState, onManualCall, buildRequestBody,
 }: Props) {
   // Mock pipeline animation state (used when not in live mode)
