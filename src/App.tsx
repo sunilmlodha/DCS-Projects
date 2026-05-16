@@ -206,8 +206,7 @@ export default function App() {
       >
         <div className="max-w-screen-xl mx-auto px-5 py-3 flex items-center gap-4 flex-wrap">
           <div className="flex-shrink-0">
-            <div className="font-black text-sm leading-tight" style={{ color: tx }}>AFRS Simulation Factory</div>
-            <div className="text-[11px]" style={{ color: tm }}>Pega CDH Real-Time Container · Stages 1–13</div>
+            <div className="font-black text-sm leading-tight" style={{ color: tx }}>AFRS Simulation Studio</div>
           </div>
 
           {/* Persona picker — preset + saved custom, grouped by service */}
