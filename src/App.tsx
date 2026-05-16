@@ -8,14 +8,15 @@ import CandidateProfile from './components/CandidateProfile';
 import CDHApiPanel from './components/CDHApiPanel';
 import SimpleMobile from './components/SimpleMobile';
 import WebPortal from './components/WebPortal';
+import MarketerView from './components/MarketerView';
 import PersonaBuilder from './components/PersonaBuilder';
 import { useTheme, useThemeColors, THEMES } from './context/ThemeContext';
 import { useCapture } from './hooks/useCapture';
-import { useStageView } from './hooks/useStageView';
 import { useCDHConfig } from './hooks/useCDHConfig';
 import { useCDHLiveCall } from './hooks/useCDHLiveCall';
 
-type ViewMode = 'mobile' | 'web';
+type ViewMode   = 'mobile' | 'web';
+type UserView   = 'candidate' | 'marketer';
 
 // Maps each service to the stageConfigs key that has its journey defined
 const SERVICE_STAGE_KEY: Record<string, string> = {
@@ -54,7 +55,8 @@ export default function App() {
   );
 
   // ── UI toggle state ────────────────────────────────────────────────────────
-  const [viewMode, setViewMode] = useState<ViewMode>('mobile');
+  const [viewMode, setViewMode]       = useState<ViewMode>('mobile');
+  const [userView, setUserView]       = useState<UserView>('candidate');
   const [showCDHPanel, setShowCDHPanel] = useState(false);
 
   // ── Theme (from context — set by ThemeProvider in main.tsx) ───────────────
@@ -92,9 +94,6 @@ export default function App() {
     }
     return base;
   }, [stage, selectedStage, activePlatform.url, cdhConfig.enabled, cdhLive.liveActions]);
-
-  // ── Stage view metadata — centralises all stage.id === 1 branching ────────
-  const stageView = useStageView(stage, activePlatform, selectedPersona);
 
   // ── Advance callback (called by useCapture after CTA → done) ─────────────
   const handleAdvance = useCallback((nextStageId: number) => {
@@ -196,15 +195,6 @@ export default function App() {
     return () => clearTimeout(t);
   }, [apiKey]);
 
-  // ── Derived UI values ──────────────────────────────────────────────────────
-
-  // CDH node in the architecture flow bar — reflects whichever decisioning path is active
-  const patternArchNode = stage.actions.find((a) => a.ContentFragmentID)
-    ? { label: 'CDH Content',    detail: 'Content resolved',            sub: stage.actions.find((a) => a.ContentFragmentID)?.ContentFragmentID?.slice(0, 22) ?? 'CDH Content Studio', color: '#006dcc', icon: '🎨' }
-    : stage.actions.find((a) => a.AudienceSegment)
-    ? { label: 'CDH Activation', detail: 'Audience pushed (30-120s)',   sub: stage.actions.find((a) => a.AudienceSegment)?.AudienceSegment ?? '–', color: '#006dcc', icon: '👥' }
-    : { label: 'CDH Render',     detail: 'Single-platform decisioning', sub: 'CDH Real-Time Container',  color: '#006dcc', icon: '✅' };
-
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen flex flex-col" style={{ background: theme.bg, color: tx }}>
@@ -216,8 +206,7 @@ export default function App() {
       >
         <div className="max-w-screen-xl mx-auto px-5 py-3 flex items-center gap-4 flex-wrap">
           <div className="flex-shrink-0">
-            <div className="font-black text-sm leading-tight" style={{ color: tx }}>AFRS Candidate Experience Emulator</div>
-            <div className="text-[11px]" style={{ color: tm }}>Pega CDH Real-Time Container · Stages 1–13</div>
+            <div className="font-black text-sm leading-tight" style={{ color: tx }}>AFRS Simulation Studio</div>
           </div>
 
           {/* Persona picker — preset + saved custom, grouped by service */}
@@ -290,19 +279,35 @@ export default function App() {
           </div>
 
           <div className="ml-auto flex items-center gap-3 flex-wrap">
-            {/* View mode toggle */}
+            {/* Candidate / Marketer view toggle */}
             <div className="flex items-center gap-0.5 rounded-lg p-0.5" style={{ background: theme.bgAlt, border: `1px solid ${theme.border}` }}>
-              {([['mobile', '📱 Mobile'], ['web', '🖥 Web']] as [ViewMode, string][]).map(([mode, label]) => (
+              {([['candidate', '🎯 Candidate'], ['marketer', '📊 Marketer']] as [UserView, string][]).map(([uv, label]) => (
                 <button
-                  key={mode}
-                  onClick={() => setViewMode(mode)}
+                  key={uv}
+                  onClick={() => setUserView(uv)}
                   className="px-2.5 py-1 rounded-md text-[10px] font-bold transition-all"
-                  style={{ background: viewMode === mode ? selectedPersona.color : 'transparent', color: viewMode === mode ? 'white' : tm }}
+                  style={{ background: userView === uv ? selectedPersona.color : 'transparent', color: userView === uv ? 'white' : tm }}
                 >
                   {label}
                 </button>
               ))}
             </div>
+
+            {/* View mode toggle — only relevant in candidate view */}
+            {userView === 'candidate' && (
+              <div className="flex items-center gap-0.5 rounded-lg p-0.5" style={{ background: theme.bgAlt, border: `1px solid ${theme.border}` }}>
+                {([['mobile', '📱 Mobile'], ['web', '🖥 Web']] as [ViewMode, string][]).map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    onClick={() => setViewMode(mode)}
+                    className="px-2.5 py-1 rounded-md text-[10px] font-bold transition-all"
+                    style={{ background: viewMode === mode ? selectedPersona.color : 'transparent', color: viewMode === mode ? 'white' : tm }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* CDH API panel toggle */}
             <button
@@ -327,21 +332,15 @@ export default function App() {
               ))}
             </div>
 
-            <div className="text-[10px] font-semibold px-2.5 py-1 rounded-full hidden lg:block" style={{ background: `${selectedPersona.color}20`, color: selectedPersona.color, border: `1px solid ${selectedPersona.color}30` }}>
-              CDH Real-Time Container
-            </div>
-            <div className="flex items-center gap-1.5 text-[11px]" style={{ color: tm }}>
-              <div
-                className="w-1.5 h-1.5 rounded-full animate-pulse"
-                style={{ background: cdhConfig.enabled ? (cdhLive.liveActions ? '#22c55e' : cdhLive.error ? '#ef4444' : '#f59e0b') : '#22c55e' }}
-              />
-              {cdhConfig.enabled
-                ? cdhLive.loading ? 'CDH Calling…'
-                  : cdhLive.liveActions ? 'CDH Live ⚡'
-                  : cdhLive.error ? 'CDH Error'
-                  : 'CDH Live ⚡'
-                : 'CDH Mock'}
-            </div>
+            {cdhConfig.enabled && (
+              <div className="flex items-center gap-1.5 text-[11px]" style={{ color: tm }}>
+                <div
+                  className="w-1.5 h-1.5 rounded-full"
+                  style={{ background: cdhLive.liveActions ? '#22c55e' : cdhLive.error ? '#ef4444' : '#f59e0b' }}
+                />
+                {cdhLive.error ? 'CDH Error' : 'CDH Live ⚡'}
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -351,15 +350,30 @@ export default function App() {
         {/* Phase row */}
         <div className="max-w-screen-xl mx-auto px-5 flex items-center gap-1 pt-2">
           {PHASE_GROUPS.map((pg) => {
-            const active = selectedPhase === pg.phaseNum;
+            const active   = selectedPhase === pg.phaseNum;
+            const isLive   = pg.phaseNum === 1;
             return (
               <button
                 key={pg.phaseNum}
                 onClick={() => handlePhaseChange(pg.phaseNum)}
-                className="flex flex-col items-center px-3 py-1.5 rounded-t-lg text-[10px] font-bold transition-all duration-150 border border-b-0"
-                style={{ background: active ? `${selectedPersona.color}18` : 'transparent', borderColor: active ? `${selectedPersona.color}40` : 'transparent', color: active ? selectedPersona.color : tm }}
+                className="flex flex-col items-center px-3 py-1.5 rounded-t-lg text-[10px] font-bold transition-all duration-150 border border-b-0 relative"
+                style={{
+                  background: active ? `${selectedPersona.color}18` : 'transparent',
+                  borderColor: active ? `${selectedPersona.color}40` : 'transparent',
+                  color: active ? selectedPersona.color : isLive ? tm : ts,
+                  opacity: isLive ? 1 : 0.6,
+                }}
               >
-                <span>{pg.label}</span>
+                <span className="flex items-center gap-1">
+                  {pg.label}
+                  {isLive && (
+                    <span className="inline-flex items-center gap-0.5 text-[8px] font-bold px-1 py-0.5 rounded"
+                      style={{ background: '#22c55e20', color: '#22c55e' }}>
+                      <span className="w-1 h-1 rounded-full bg-green-400 animate-pulse" />
+                      LIVE
+                    </span>
+                  )}
+                </span>
                 <span className="text-[8px] font-normal opacity-70">{pg.sub}</span>
               </button>
             );
@@ -424,22 +438,6 @@ export default function App() {
         )}
       </div>
 
-      {/* ── Capture notification banner ── */}
-      {captured && captureResponse && (
-        <div className="border-b slide-in" style={{ background: `${selectedPersona.color}15`, borderColor: `${selectedPersona.color}30` }}>
-          <div className="max-w-screen-xl mx-auto px-5 py-2 flex items-center gap-3">
-            <span className="text-green-400 font-bold text-xs">📡 Interaction captured</span>
-            <span className="text-slate-400 text-xs">{captureResponse.InteractionID}</span>
-            <span className="text-slate-500 text-[10px]">·</span>
-            <span className="text-slate-400 text-xs">
-              Next NBA: <span className="font-semibold" style={{ color: selectedPersona.color }}>{captureResponse.NextBestAction.ActionName}</span>
-            </span>
-            <span className="text-slate-500 text-[10px]">·</span>
-            <span className="text-slate-400 text-xs">Δ propensity +{(captureResponse.PropensityDelta * 100).toFixed(0)}pp</span>
-            <span className="ml-auto text-[10px] text-slate-600 font-mono">{captureResponse.ATRSRef}</span>
-          </div>
-        </div>
-      )}
 
       {/* ── Main layout ── */}
       <div className="flex-1 max-w-screen-xl mx-auto w-full px-5 py-5" style={{ color: tx }}>
@@ -460,70 +458,61 @@ export default function App() {
             />
           </div>
 
-          {/* Centre: flow + views */}
+          {/* Centre: Candidate view or Marketer view */}
           <div className="flex flex-col gap-4">
-            {/* 3-node flow header — labels derived from useStageView */}
-            <div className="w-full grid grid-cols-3 gap-1 text-[10px] font-mono">
-              {[
-                {
-                  label: stageView.touchpointLabel,
-                  sub: stageView.touchpointSub,
-                  color: stageView.touchpointColor,
-                },
-                { label: '→ CDH API →', sub: 'Real-Time Container', color: '#006dcc' },
-                {
-                  label: captured ? '✓ Captured' : nbaReady ? 'NBA Rendered' : 'Awaiting…',
-                  sub: captured ? 'POST /interactions/capture' : nbaReady ? stage.actions[0]?.Channel ?? '' : 'CDH deciding',
-                  color: captured ? '#22c55e' : nbaReady ? '#22c55e' : '#334155',
-                },
-              ].map(({ label, sub, color }, i) => (
-                <div key={i} className="text-center px-2 py-1.5 rounded-lg" style={{ background: `${color}12`, border: `1px solid ${color}25` }}>
-                  <div className="font-bold truncate" style={{ color }}>{label}</div>
-                  <div className="text-slate-600 text-[9px] truncate">{sub}</div>
+            {userView === 'marketer' ? (
+              /* ── Marketer / Ops view ───────────────────────────────────── */
+              <MarketerView
+                key={`marketer-${selectedPersona.id}-${stage.id}-${activePlatform.id}`}
+                stage={effectiveStage}
+                persona={selectedPersona}
+                platform={activePlatform}
+                nbaReady={nbaReady}
+              />
+            ) : (
+              /* ── Candidate view ────────────────────────────────────────── */
+              <>
+                <div className="flex justify-center">
+                  {viewMode === 'mobile' && (
+                    <SimpleMobile
+                      key={`mobile-${selectedPersona.id}-${stage.id}-${activePlatform.id}`}
+                      stage={effectiveStage}
+                      persona={selectedPersona}
+                      nbaReady={nbaReady}
+                      platform={activePlatform}
+                      capturing={capturing}
+                      captured={captured}
+                      onCtaClick={handleCtaClick}
+                    />
+                  )}
+                  {viewMode === 'web' && (
+                    <div className="w-full">
+                      <WebPortal
+                        key={`web-${selectedPersona.id}-${stage.id}-${activePlatform.id}`}
+                        stage={effectiveStage}
+                        persona={selectedPersona}
+                        nbaReady={nbaReady}
+                        platform={activePlatform}
+                        capturing={capturing}
+                        captured={captured}
+                        onCtaClick={handleCtaClick}
+                      />
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
 
-            {/* View area — mobile / web */}
-            <div className="flex justify-center">
-              {viewMode === 'mobile' && (
-                <SimpleMobile
-                  key={`mobile-${selectedPersona.id}-${stage.id}-${activePlatform.id}`}
-                  stage={effectiveStage}
-                  persona={selectedPersona}
-                  nbaReady={nbaReady}
-                  platform={activePlatform}
-                  capturing={capturing}
-                  captured={captured}
-                  onCtaClick={handleCtaClick}
-                />
-              )}
-              {viewMode === 'web' && (
-                <div className="w-full">
-                  <WebPortal
-                    key={`web-${selectedPersona.id}-${stage.id}-${activePlatform.id}`}
-                    stage={effectiveStage}
-                    persona={selectedPersona}
-                    nbaReady={nbaReady}
-                    platform={activePlatform}
-                    capturing={capturing}
-                    captured={captured}
-                    onCtaClick={handleCtaClick}
-                  />
+                {/* Candidate sees strip */}
+                <div
+                  className="w-full rounded-xl p-3 text-xs text-slate-300 leading-relaxed"
+                  style={{ background: `${selectedPersona.color}0a`, border: `1px solid ${selectedPersona.color}20` }}
+                >
+                  <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: selectedPersona.color }}>
+                    Candidate sees · {stage.dayRange}
+                  </div>
+                  {stage.candidateSees}
                 </div>
-              )}
-            </div>
-
-            {/* Candidate sees */}
-            <div
-              className="w-full rounded-xl p-3 text-xs text-slate-300 leading-relaxed"
-              style={{ background: `${selectedPersona.color}0a`, border: `1px solid ${selectedPersona.color}20` }}
-            >
-              <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: selectedPersona.color }}>
-                Candidate sees · {stage.dayRange}
-              </div>
-              {stage.candidateSees}
-            </div>
+              </>
+            )}
           </div>
 
           {/* Right: CDH API panel — shown on demand via ⚡ CDH API toggle */}
@@ -546,7 +535,6 @@ export default function App() {
                 onNBAReady={handleNBAReady}
                 captureRequest={captureRequest}
                 captureResponse={captureResponse}
-                capturing={capturing}
                 config={cdhConfig}
                 onConfigChange={updateCDHConfig}
                 onConfigReset={resetCDHConfig}
@@ -558,55 +546,6 @@ export default function App() {
           )}
         </div>
 
-        {/* ── Architecture flow bar ── */}
-        <div className="mt-5 rounded-2xl p-4" style={{ background: theme.bgAlt, border: `1px solid ${theme.border}` }}>
-          <div className="text-[10px] uppercase tracking-widest font-bold mb-3" style={{ color: ts }}>
-            Integration Architecture · Stage {stage.id}: {stage.name}
-            {captured && <span className="ml-2 text-green-400">· Capture recorded ✓</span>}
-          </div>
-          <div className="flex items-stretch gap-2 overflow-x-auto">
-            {[
-              // Source node — platform or candidate depending on stage, via stageView
-              {
-                label:  stageView.archSourceLabel,
-                detail: stageView.archSourceDetail,
-                sub:    stageView.archSourceSub,
-                color:  stageView.archSourceColor,
-                icon:   stageView.archSourceIcon,
-              },
-              { label: 'CDH Adaptive Model',  detail: `${stage.propensity}% → ${stage.adaptiveScore}%`,  sub: 'Engagement policy · D&I fairness · arbitration',  color: '#006dcc', icon: '🧠' },
-              { label: 'Real-Time Container',  detail: 'POST /real-time-container',                       sub: stage.containerName,                                color: '#00c2ff', icon: '⚡' },
-              { label: 'NBA Arbitration',      detail: `${stage.actions.length} actions ranked`,          sub: `Winner: ${stage.actions[0]?.ActionID ?? '–'}`,     color: '#22c55e', icon: '🎯' },
-              ...(captured ? [{
-                label: 'Capture API', detail: 'Interaction recorded',
-                sub: captureResponse?.InteractionID?.slice(0, 24) ?? '–', color: '#f59e0b', icon: '📡',
-              }] : []),
-              ...(captured && captureResponse ? [{
-                label: 'Next NBA Queued',
-                detail: captureResponse.NextBestAction.ActionName.split(' ').slice(0, 4).join(' ') + '…',
-                sub: `pAccept ${(captureResponse.NextBestAction.pAccept * 100).toFixed(0)}% · ${captureResponse.NextBestAction.Channel}`,
-                color: selectedPersona.color, icon: '➡',
-              }] : []),
-              // Pattern node when not yet captured — resolved from derived patternArchNode
-              ...(!captured ? [patternArchNode] : []),
-            ].map(({ label, detail, sub, color, icon }, i, arr) => (
-              <div key={label} className="flex items-center gap-1.5 flex-shrink-0">
-                <div className="rounded-xl p-2.5 w-36" style={{ background: `${color}10`, border: `1px solid ${color}25` }}>
-                  <div className="flex items-center gap-1 mb-1">
-                    <span className="text-sm">{icon}</span>
-                    <span className="text-[9px] font-bold text-white leading-tight">{label}</span>
-                  </div>
-                  <div className="text-[10px] font-semibold truncate" style={{ color }}>{detail}</div>
-                  <div className="text-[9px] text-slate-600 leading-snug mt-0.5 line-clamp-2">{sub}</div>
-                </div>
-                {i < arr.length - 1 && <div className="text-slate-700 text-sm flex-shrink-0">→</div>}
-              </div>
-            ))}
-          </div>
-          <div className="mt-2 text-[9px] font-mono" style={{ color: ts }}>
-            ATRS-recorded · D&I 0.91 ≥ 0.85 · CDH Real-Time Container
-          </div>
-        </div>
       </div>
 
       {/* Persona Builder modal */}
