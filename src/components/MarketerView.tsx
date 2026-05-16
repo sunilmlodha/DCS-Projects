@@ -207,10 +207,10 @@ export default function MarketerView({ stage, persona, platform, nbaReady }: Pro
             Signals Feeding CDH · {stage.signals.length} active
           </div>
           <div className="space-y-1.5">
-            {stage.signals.map((sig) => (
-              <div key={sig.key} className="flex items-center gap-2 text-[10px]">
+            {stage.signals.map((sig, i) => (
+              <div key={i} className="flex items-center gap-2 text-[10px]">
                 <span className="text-slate-700 flex-shrink-0">→</span>
-                <span className="text-slate-400 flex-1">{sig.label}</span>
+                <span className="text-slate-400 flex-1">{sig.signal}</span>
                 <span className="font-mono text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded text-[9px]">
                   {String(sig.value)}
                 </span>
