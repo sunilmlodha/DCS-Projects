@@ -587,7 +587,7 @@ export default function CDHApiPanel({
                 <div className="flex gap-2 mt-2 text-[9px]">
                   <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">{stage.channel}</span>
                   <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">{stage.touchpoint.replace(/_/g, ' ')}</span>
-                  <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">{stage.direction ?? 'INBOUND'}</span>
+                  <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">INBOUND</span>
                 </div>
               </div>
 
